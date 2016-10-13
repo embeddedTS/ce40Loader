@@ -1,0 +1,24 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ce40Loader", "ce40Loader\ce40Loader.vcxproj", "{A5629C63-879C-455D-94D1-D3222188884D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|GuruCE iMX6 SDK = Debug|GuruCE iMX6 SDK
+		Release|GuruCE iMX6 SDK = Release|GuruCE iMX6 SDK
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A5629C63-879C-455D-94D1-D3222188884D}.Debug|GuruCE iMX6 SDK.ActiveCfg = Debug|GuruCE iMX6 SDK
+		{A5629C63-879C-455D-94D1-D3222188884D}.Debug|GuruCE iMX6 SDK.Build.0 = Debug|GuruCE iMX6 SDK
+		{A5629C63-879C-455D-94D1-D3222188884D}.Debug|GuruCE iMX6 SDK.Deploy.0 = Debug|GuruCE iMX6 SDK
+		{A5629C63-879C-455D-94D1-D3222188884D}.Release|GuruCE iMX6 SDK.ActiveCfg = Release|GuruCE iMX6 SDK
+		{A5629C63-879C-455D-94D1-D3222188884D}.Release|GuruCE iMX6 SDK.Build.0 = Release|GuruCE iMX6 SDK
+		{A5629C63-879C-455D-94D1-D3222188884D}.Release|GuruCE iMX6 SDK.Deploy.0 = Release|GuruCE iMX6 SDK
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
