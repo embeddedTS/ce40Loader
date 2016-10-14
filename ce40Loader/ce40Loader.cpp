@@ -55,10 +55,10 @@ int wmain(int argc, wchar_t *argv[])
 			// do error thing
 		};
 
-		// SPI MOSI is ???
-		mosi.Port = ;
-		mosi.Pin = ;
-		mosi.Value = ;
+		// SPI MOSI is CSI0_DAT9 -> GPIO5_IO27
+		mosi.Port = GPIO_PORT_5;
+		mosi.Pin = GPIO_PIN_27;
+		mosi.Value = 0;
 		mosiConfig.Port = mosi.Port;
 		mosiConfig.Pin = mosi.Pin;
 		mosiConfig.Direction = GPIO_DIR_OUT;
@@ -73,10 +73,26 @@ int wmain(int argc, wchar_t *argv[])
 			// do error thing
 		}
 
-		// SPI CLOCK is ???
-		spi_clk.Port = ;
-		spi_clk.Pin = ;
-		spi_clk.Value = ;
+		// SPI MISO is CSI0_DAT10 -> GPIO5_IO28   <--- Do I even NEED MISO?
+		miso.Port = GPIO_PORT_5;
+		miso.Pin = GPIO_PIN_28;
+		miso.Value = 0;  // it's an input.
+		misoConfig.Direction = GPIO_DIR_IN;
+		misoConfig.Hysteresis = GPIO_HYSTERESIS_DISABLE;
+		misoConfig.Function = GPIO_FUNCTION_ALT5;
+		misoConfig.OpenDrain = GPIO_OPENDRAIN_ENABLE; // I don't know if this is correct.
+		misoConfig.Loopback = GPIO_LOOPBACK_DISABLE;
+		misoConfig.Pull = GPIO_PULL_INVALID; // I don't think we want to put voltage on this pin.
+		misoConfig.Slew = GPIO_SLEW_FAST;
+		misoConfig.Drive = GPIO_DRIVE_DISABLED;  // Don't drive this pin.
+		if (!GpioSetConfig(&misoConfig)) {
+			// do error thing
+		}
+
+		// SPI CLOCK is CSI0_DAT8 -> GPIO5_IO26
+		spi_clk.Port = GPIO_PORT_5;
+		spi_clk.Pin = GPIO_PIN_26;
+		spi_clk.Value = 1;
 		spi_clkConfig.Direction = GPIO_DIR_OUT;
 		spi_clkConfig.Hysteresis = GPIO_HYSTERESIS_DISABLE;
 		spi_clkConfig.Function = GPIO_FUNCTION_ALT5; // api says this is ignored for setup of gpio.
