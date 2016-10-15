@@ -5,6 +5,11 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ce40Loader", "ce40Loader\ce40Loader.vcxproj", "{A5629C63-879C-455D-94D1-D3222188884D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{01BF5C2F-A611-4FC4-93D9-AD7A90611FDB}"
+	ProjectSection(SolutionItems) = preProject
+		..\CEFPGALoader_console\ts4900-fpga.bin = ..\CEFPGALoader_console\ts4900-fpga.bin
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|GuruCE iMX6 SDK = Debug|GuruCE iMX6 SDK

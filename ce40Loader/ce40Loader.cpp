@@ -143,9 +143,31 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "Couldn't tick spi clock." << std::endl;
 #endif
 
-	// load the file
+	// load the file            <-------------------------------------------------TODO
 
-	// pass the array to the feeder
+	// fpga init dance - put the fpga in programming mode.
+	printf("Performing FPGA programming incantation:\n");
+	fpga_reset.Value = 0;
+	fpga_cs.Value = 0;
+	if (!GpioWritePin(&fpga_reset))
+	{
+		std::cout << "fpga reset pin clear failed.\n";
+	}
+	if (!GpioWritePin(&fpga_cs))
+	{
+		std::cout << "Chip select assert failed.\n";
+	}
+	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum).\r\n");  // Need a shorter sleep.  1ms will do though.
+	Sleep(1);
+	fpga_reset.Value = 1;
+	if (!GpioWritePin(&fpga_reset))
+	{
+		std::cout << "fpga reset pin did not set high.\r\n";
+	}
+	printf("Set fpga reset high.  Hold for 2ms.\n");
+	Sleep(2);  // The Ice40 datasheet says 800 usec in one place, and 1500 usec in another.  Our observation is you need 2ms before writing.
+
+	// pass the array to the feeder & start writing.    <-------------------------TODO
 
 	// check FPGA status
 	

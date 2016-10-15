@@ -17,6 +17,9 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -25,5 +28,11 @@
     <ClCompile Include="ce40Loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ce40Loader.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="binary1.bin" />
   </ItemGroup>
 </Project>
