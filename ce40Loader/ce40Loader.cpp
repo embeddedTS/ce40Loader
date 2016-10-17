@@ -65,7 +65,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	// Zero the fpga data container, then copy the locked fpga data memory into it, offset by 1 so we keep our
 	//  8 leading zeros, for size less the 8 bits we offset for (so we don't overrun by 8 bits).
-	memset(fpga_data, 0, fpga_size);
+	memset(fpga_data, 0, fpga_size + PADDING_ZEROS);
 	memcpy(fpga_data + 1, locked_memory, fpga_size);
 
 	// maybe do some kind of check against the integrity of the read here?
