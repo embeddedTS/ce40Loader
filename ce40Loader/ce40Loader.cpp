@@ -26,6 +26,11 @@
 int wmain(int argc, wchar_t *argv[])
 {
 	int err = 0;
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                                RESOURCE LOAD BLOCK                                        //
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
 	unsigned char *fpga_data;
 	unsigned long rsrc_error = ERROR_SUCCESS; // error_success aka zero, represented as a ulong.
 	HRSRC resource_handle = FindResource(NULL, MAKEINTRESOURCE(IDR_BINARY1), RT_RCDATA);
@@ -64,13 +69,15 @@ int wmain(int argc, wchar_t *argv[])
 	}
 
 	// Zero the fpga data container, then copy the locked fpga data memory into it, offset by 1 so we keep our
-	//  8 leading zeros, for size less the 8 bits we offset for (so we don't overrun by 8 bits).
+	//  8 leading zeros.  Since fpga_size is 14 bytes smaller than fpga_data, we're not worried about overruns.
 	memset(fpga_data, 0, fpga_size + PADDING_ZEROS);
 	memcpy(fpga_data + 1, locked_memory, fpga_size);
 
 	// maybe do some kind of check against the integrity of the read here?
 
-	printf("This is the FPGA loader.\n");
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                             GPIO SETUP BLOCK                                              //
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// set up the GPIO
 	GPIO fpga_cs, mosi, miso, spi_clk, fpga_done, fpga_reset;
@@ -181,12 +188,10 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "Couldn't tick spi clock." << std::endl;
 #endif
 
-	// load the file            <-------------------------------------------------TODO
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                  fpga init dance - put the fpga in programming mode.                      //
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-	// fpga init dance - put the fpga in programming mode.
 	printf("Performing FPGA programming incantation:\n");
 	fpga_reset.Value = 0;
 	fpga_cs.Value = 0;
@@ -198,7 +203,7 @@ int wmain(int argc, wchar_t *argv[])
 	{
 		std::cout << "Chip select assert failed.\n";
 	}
-	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum).\r\n");  // Need a shorter sleep.  1ms will do though.
+	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum, 1 ms actual).\r\n");  // 1ms will do.
 	Sleep(1);
 	fpga_reset.Value = 1;
 	if (!GpioWritePin(&fpga_reset))
@@ -208,10 +213,15 @@ int wmain(int argc, wchar_t *argv[])
 	printf("Set fpga reset high.  Hold for 2ms.\n");
 	Sleep(2);  // The Ice40 datasheet says 800 usec in one place, and 1500 usec in another.  Our observation is you need 2ms before writing.
 
-	// pass the array to the feeder & start writing.    <-------------------------TODO
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                             BANG OUT ARRAY ON SPI PINS                                    //
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	// TODO!
 
-
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                                      WRAP UP                                              //
+	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// check FPGA DONE-ness.
 	// gpioreadpin returns true on read success, or false on read fail, and modifies gpiopin.Value to the appropriate state.
@@ -228,6 +238,12 @@ int wmain(int argc, wchar_t *argv[])
 
 	
 	// clean up
+	delete fpga_data;
+	if (!GpioDeinit()) {
+		printf("For what it's worth, I probably just leaked GPIO handles because GpioDeinit() returned false.  Error #%d", GetLastError());
+		return 1;
+	}
+
 
 	return 0;
 
