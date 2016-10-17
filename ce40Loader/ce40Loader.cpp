@@ -11,28 +11,66 @@
 
 #include "stdafx.h"
 #include <windows.h>
+#include <tchar.h>
 #include <iostream>
+#include "resource.h"
 #include <gpiosdk.h>  // This header is in the GuruCE SDK.
 
-// I need three functions:
-//  Function 1:  Clock out 8 data bits to SPI2_MOSI.
-//    Needs GPIO for SPI2_CLK and SPI2_MOSI.
-//    Needs an array of 8 bits.
-//    Return an error status if one of the GPIO isn't working.
-//
-//  Function 2:  Feed func. 1 a big array 8 bits at a time.
-//    Needs a big a rray full of data to push out.
-//    Needs to hold the correct chip select low until done.
-//    Also get the GPIO structures going...
-//
-//  Function 3:  Bang out this little "Secret Handshake" 
-//   to put the FPGA in program mode.
+#define PADDING_ZEROS 14
+
+// Notes
+//  I might benefit from using QueryPerformanceCounter to create a more precision sleep.
+//  Is it better to look for a file in the OS filesystem, or to build-in a resource?
+// /Notes
 
 int wmain(int argc, wchar_t *argv[])
 {
 	int err = 0;
+	unsigned char *fpga_data;
+	unsigned long rsrc_error = ERROR_SUCCESS; // error_success aka zero, represented as a ulong.
+	HRSRC resource_handle = FindResource(NULL, MAKEINTRESOURCE(IDR_BINARY1), RT_RCDATA);
+	if (!resource_handle) {
+		err = GetLastError();
+		std::cout << "Couldn't get resource handle, error #" << err << "." << std::endl;
+		return 1;
+	}
+	HGLOBAL mem_handle = LoadResource(NULL, resource_handle);
+	if (!mem_handle) {
+		err = GetLastError();
+		std::cout << "Couldn't allocate memory handle.  Error # " << err << "." << std::endl;
+		return 1;
+	}
+	unsigned long fpga_size = SizeofResource(NULL, resource_handle);
+	if (fpga_size == 0) {
+		err = GetLastError();
+		std::cout << "Sorry Cap, the FPGA resource size came back zero.  We're sunk!  I got error # "
+			<< err << "." << std::endl;
+		return 1;
+	}
+	void *locked_memory = LockResource(mem_handle);
+	if (!locked_memory) {
+		err = GetLastError();
+		std::cout << "Could not lock resource handle.  It's over Cap.  Error #" << err << "." << std::endl;
+		return 1;
+	}
+	// So, fpga_size is the actual size of our fpga bitmap, but to program, we actually need to pad it.
+	//  The ICE40 wants 8 leading zeros, and ... bizarrely 100(!) trailing zeros.
+	//  Since it doesn't add up evenly, I'm going with 14 extra bytes total FPGA size.  That's 112 total extra zeros.
+	fpga_data = new unsigned char[fpga_size + PADDING_ZEROS];
+	if (!fpga_data) {
+		err = GetLastError();
+		std::cout << "Something bad happened while allocating the fpga data array.  Error #" << err << std::endl;
+		return 1;
+	}
 
-	printf("This is the FPGA loader.  Thanks, I'll take it from here.\n");
+	// Zero the fpga data container, then copy the locked fpga data memory into it, offset by 1 so we keep our
+	//  8 leading zeros, for size less the 8 bits we offset for (so we don't overrun by 8 bits).
+	memset(fpga_data, 0, fpga_size);
+	memcpy(fpga_data + 1, locked_memory, fpga_size);
+
+	// maybe do some kind of check against the integrity of the read here?
+
+	printf("This is the FPGA loader.\n");
 
 	// set up the GPIO
 	GPIO fpga_cs, mosi, miso, spi_clk, fpga_done, fpga_reset;
@@ -145,6 +183,9 @@ int wmain(int argc, wchar_t *argv[])
 
 	// load the file            <-------------------------------------------------TODO
 
+
+
+
 	// fpga init dance - put the fpga in programming mode.
 	printf("Performing FPGA programming incantation:\n");
 	fpga_reset.Value = 0;
@@ -169,7 +210,22 @@ int wmain(int argc, wchar_t *argv[])
 
 	// pass the array to the feeder & start writing.    <-------------------------TODO
 
-	// check FPGA status
+
+
+
+	// check FPGA DONE-ness.
+	// gpioreadpin returns true on read success, or false on read fail, and modifies gpiopin.Value to the appropriate state.
+	if (!GpioReadPin(&fpga_done)) {
+		err = GetLastError();
+		std::cout << "Could not read fpga_done.  GetLastError() =" << err << std::endl;
+		// handle error?
+	}
+	// iCE40HX4K Handbook says CDONE will assert high when programming is completed.
+	if (fpga_done.Value != 1) 
+		std::cout << "fpga_done signal returned low.  FPGA configuration was not successful." << std::endl;
+	else 
+		std::cout << "fpga_done signal returned high.  The FPGA configuration is complete." << std::endl;
+
 	
 	// clean up
 

@@ -43,6 +43,8 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
+      <AdditionalLibraryDirectories>C:\Program Files %28x86%29\Windows CE Tools\SDKs\GuruCE iMX6 SDK\Sdk\Lib\ARMV7\retail;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>coredll.lib;i2csdk.lib;ecspisdk.lib;gpiosdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|GuruCE iMX6 SDK'">
