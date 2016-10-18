@@ -4,7 +4,7 @@
 //  Written by Michael D. Peters
 // This program demonstrates a bit-banged approach to loading the bitmap file
 //  for the TS-4900 ICE40 FPGA.
-// This software requires a 3rd party SDK, visit www.guruce.com for the 
+// This software requires a 3rd party SDK, visit http://www.guruce.com for the 
 //  i.MX6 TS-4900 Windows Embedded Compact 2013 SDK.
 //
 // Information on the TS-4900 is available at http://www.embeddedarm.com/products/TS-4900
@@ -33,10 +33,10 @@ int wmain(int argc, wchar_t *argv[])
 
 	unsigned char *fpga_data;
 	unsigned long rsrc_error = ERROR_SUCCESS; // error_success aka zero, represented as a ulong.
-	HRSRC resource_handle = FindResource(NULL, MAKEINTRESOURCE(IDR_BINARY1), RT_RCDATA);
+	HRSRC resource_handle = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
 	if (!resource_handle) {
 		err = GetLastError();
-		std::cout << "Couldn't get resource handle, error #" << err << "." << std::endl;
+		std::cout << "Couldn't get resource handle, error #" << err << "." << std::endl; 
 		return 1;
 	}
 	HGLOBAL mem_handle = LoadResource(NULL, resource_handle);
@@ -58,9 +58,9 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "Could not lock resource handle.  It's over Cap.  Error #" << err << "." << std::endl;
 		return 1;
 	}
-	// So, fpga_size is the actual size of our fpga bitmap, but to program, we actually need to pad it.
+	// So, fpga_size is the actual size of our fpga bitmap, but to program, we actually need to pad the transmission.
 	//  The ICE40 wants 8 leading zeros, and ... bizarrely 100(!) trailing zeros.
-	//  Since it doesn't add up evenly, I'm going with 14 extra bytes total FPGA size.  That's 112 total extra zeros.
+	//  Since it doesn't add up evenly, I'm going with +14 bytes.  That's 112 total extra zeros. 8 to start, 104 to end.
 	fpga_data = new unsigned char[fpga_size + PADDING_ZEROS];
 	if (!fpga_data) {
 		err = GetLastError();
@@ -76,7 +76,7 @@ int wmain(int argc, wchar_t *argv[])
 	// maybe do some kind of check against the integrity of the read here?
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
-	//                             GPIO SETUP BLOCK                                              //
+	//                                  GPIO SETUP BLOCK                                         //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// set up the GPIO
@@ -235,7 +235,6 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "fpga_done signal returned low.  FPGA configuration was not successful." << std::endl;
 	else 
 		std::cout << "fpga_done signal returned high.  The FPGA configuration is complete." << std::endl;
-
 	
 	// clean up
 	delete fpga_data;
@@ -243,8 +242,6 @@ int wmain(int argc, wchar_t *argv[])
 		printf("For what it's worth, I probably just leaked GPIO handles because GpioDeinit() returned false.  Error #%d", GetLastError());
 		return 1;
 	}
-
-
 	return 0;
 
 }

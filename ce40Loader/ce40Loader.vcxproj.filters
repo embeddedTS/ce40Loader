@@ -33,6 +33,6 @@
     <ResourceCompile Include="ce40Loader.rc" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="binary1.bin" />
+    <None Include="..\..\CEFPGALoader_console\ts4900-fpga.bin" />
   </ItemGroup>
 </Project>
