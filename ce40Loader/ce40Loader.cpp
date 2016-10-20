@@ -15,17 +15,47 @@
 #include <iostream>
 #include "resource.h"
 #include <gpiosdk.h>  // This header is in the GuruCE SDK.
+#include <stdint.h>
 
 #define PADDING_ZEROS 14
 
+using std::cout;
+
 // Notes
 //  I might benefit from using QueryPerformanceCounter to create a more precision sleep.
+//    ^^^^^  Actually *will*.  I tried it without.  Just over 2ms per bit means I *NEED*
+//    a shorter delay function than Sleep() provides.
 //  Is it better to look for a file in the OS filesystem, or to build-in a resource?
 // /Notes
+
+/// hold:  Holds for n/queryperformancefrequency.
+void hold(LARGE_INTEGER n) 
+{
+	LARGE_INTEGER now;
+	LARGE_INTEGER end;
+	// flyyyyyy me to the moon.
+	if (QueryPerformanceCounter(&now)) {
+		// let me plaaaaay among the stars.
+		end.QuadPart += now.QuadPart + n.QuadPart;
+		while (end.QuadPart > now.QuadPart)
+			// show me what spring is like
+			QueryPerformanceCounter(&now);
+			// On a-Juuuuupiter and Mars
+	}
+}
 
 int wmain(int argc, wchar_t *argv[])
 {
 	int err = 0;
+	LARGE_INTEGER counter;
+
+	// check if we can use queryperformancecounter
+	if (!QueryPerformanceFrequency(&counter)) {
+		std::cout << "Sorry, no high resolution timers available here.";
+		return -5;
+	}
+	else
+		cout << "Yay!  We can do high performance counters!  My counter frequency is " << counter.QuadPart << std::endl;
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                RESOURCE LOAD BLOCK                                        //
@@ -217,7 +247,33 @@ int wmain(int argc, wchar_t *argv[])
 	//                             BANG OUT ARRAY ON SPI PINS                                    //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	// TODO!
+	// NOT DONE YET!
+
+	int percent, percent_new = 0;
+	uint8_t stage, step = 0;
+	LARGE_INTEGER hold_time;
+	hold_time.QuadPart = 17;
+	// Step through the data array one byte at a time transmitting data.
+	for (int bookmark = 0; bookmark < fpga_size + PADDING_ZEROS; bookmark++) {
+		stage = fpga_data[bookmark];
+
+		// MSB first, step across the byte and transmit 1 or 0.
+		for (step = 0x80; step; step >>= 1) {
+			spi_clk.Value = 0;
+			GpioWritePin(&spi_clk);
+			if (stage & step) {
+				mosi.Value = 1;
+			}
+			else {
+				mosi.Value = 0;
+			}
+			GpioWritePin(&mosi);
+			hold(hold_time);
+			spi_clk.Value = 1;
+			GpioWritePin(&spi_clk);
+			hold(hold_time);
+		}
+	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                      WRAP UP                                              //
@@ -243,5 +299,4 @@ int wmain(int argc, wchar_t *argv[])
 		return 1;
 	}
 	return 0;
-
 }
