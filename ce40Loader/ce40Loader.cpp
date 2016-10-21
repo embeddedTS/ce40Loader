@@ -15,6 +15,7 @@
 #include <iostream>
 #include "resource.h"
 #include <gpiosdk.h>  // This header is in the GuruCE SDK.
+#include <i2csdk.h>	  // This header is in the GuruCE SDK.
 #include <stdint.h>
 
 #define PADDING_ZEROS 14
@@ -27,6 +28,71 @@ using std::cout;
 //    a shorter delay function than Sleep() provides.
 //  Is it better to look for a file in the OS filesystem, or to build-in a resource?
 // /Notes
+
+/// doI2c:  Inquires of the TS ICE40 FPGA ID register to see if that comes back sane.
+void do_i2c(void)
+{
+	HANDLE i2cbus = INVALID_HANDLE_VALUE;
+	i2cbus = I2COpenHandle(I2C1_FID);
+
+	//  Start normal TS code.
+	if (INVALID_HANDLE_VALUE == i2cbus)
+	{
+		cout << "Could not open I2C driver!\r\n";
+	}
+	I2C_TRANSFER_BLOCK i2cBlock;
+	I2C_PACKET i2cPacket[2];
+	BYTE inDat, outDat;
+	BOOL err = FALSE;
+	int result1, result2;
+
+	// Do some i2c setup stuff?
+	if (!I2CSetMasterMode(i2cbus))
+		cout << "Mastermode set returned error status.\r\n";
+	else
+		cout << "I2C Master Mode set.\r\n";
+
+	outDat = 0x51; // ask for fpga ID register.
+	inDat = 0x0; // because I don't know.
+
+		// compose the write packet:
+	i2cPacket[0].byRW = I2C_RW_WRITE;
+	i2cPacket[0].byAddr = 0x28;
+	i2cPacket[0].pbyBuf = (PBYTE)&outDat;
+	i2cPacket[0].lpiResult = &result1;
+	i2cPacket[0].wLen = sizeof(outDat);
+
+	// compose the read packet:
+	i2cPacket[1].byRW = I2C_RW_READ;
+	i2cPacket[1].byAddr = 0x28;
+	i2cPacket[1].pbyBuf = (PBYTE)&inDat;
+	i2cPacket[1].lpiResult = &result2;
+	i2cPacket[1].wLen = sizeof(inDat);
+
+	// set up transaction
+	i2cBlock.pI2CPackets = i2cPacket;
+	i2cBlock.iNumPackets = _countof(i2cPacket);
+
+	// do the transaction
+	if (I2CTransfer(i2cbus, &i2cBlock))
+	{
+		printf("I2C:\r\n");
+		printf("packet 0 write ID 0x%X outDat 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat, result1);
+		printf("packet 1 read ID 0x%X inDat 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat, result2);
+		cout << "I2C Transaction(s) complete." << std::endl;
+	}
+	else
+	{
+		printf("I2C Transfer failed, %d.\r\n", GetLastError());
+	}
+
+	if (INVALID_HANDLE_VALUE != i2cbus)
+	{
+		I2CCloseHandle(i2cbus);
+		cout << "I2C Handle Closed.\r\n";
+	}
+}
+
 
 /// hold:  Holds for n/queryperformancefrequency.
 void hold(LARGE_INTEGER n) 
@@ -247,7 +313,7 @@ int wmain(int argc, wchar_t *argv[])
 	//                             BANG OUT ARRAY ON SPI PINS                                    //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	// NOT DONE YET!
+	printf("Starting SPI send burst.\n");
 
 	int percent, percent_new = 0;
 	uint8_t stage, step = 0;
@@ -287,10 +353,15 @@ int wmain(int argc, wchar_t *argv[])
 		// handle error?
 	}
 	// iCE40HX4K Handbook says CDONE will assert high when programming is completed.
-	if (fpga_done.Value != 1) 
+	if (fpga_done.Value != 1) {
 		std::cout << "fpga_done signal returned low.  FPGA configuration was not successful." << std::endl;
-	else 
+		err = -2;
+	}
+	else {
+		err = 0;
 		std::cout << "fpga_done signal returned high.  The FPGA configuration is complete." << std::endl;
+		do_i2c();
+	}
 	
 	// clean up
 	delete fpga_data;
@@ -298,5 +369,5 @@ int wmain(int argc, wchar_t *argv[])
 		printf("For what it's worth, I probably just leaked GPIO handles because GpioDeinit() returned false.  Error #%d", GetLastError());
 		return 1;
 	}
-	return 0;
+	return err;
 }
