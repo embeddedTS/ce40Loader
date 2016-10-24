@@ -29,43 +29,57 @@ using std::cout;
 //  Is it better to look for a file in the OS filesystem, or to build-in a resource?
 // /Notes
 
-/// doI2c:  Inquires of the TS ICE40 FPGA ID register to see if that comes back sane.
+// does i2c using bit-bang technique.
+int bangi2c(LPGPIO_CONFIG gpioCfg)
+{
+	int err = ERROR_SUCCESS;
+
+	
+	return err;
+}
+
+
+// Does i2c using the guruCE i2c sdk.
 void do_i2c(void)
 {
 	HANDLE i2cbus = INVALID_HANDLE_VALUE;
 	i2cbus = I2COpenHandle(I2C1_FID);
 
-	//  Start normal TS code.
 	if (INVALID_HANDLE_VALUE == i2cbus)
 	{
 		cout << "Could not open I2C driver!\r\n";
 	}
 	I2C_TRANSFER_BLOCK i2cBlock;
 	I2C_PACKET i2cPacket[2];
-	BYTE inDat, outDat;
+	BYTE inDat[2], outDat[2];
 	BOOL err = FALSE;
 	int result1, result2;
+	int *pResult = &result2;
 
 	// Do some i2c setup stuff?
 	if (!I2CSetMasterMode(i2cbus))
 		cout << "Mastermode set returned error status.\r\n";
 	else
 		cout << "I2C Master Mode set.\r\n";
+	I2CSetFrequency(i2cbus, I2C_MAX_FREQUENCY);
 
-	outDat = 0x51; // ask for fpga ID register.
-	inDat = 0x0; // because I don't know.
+	// Addresses need to be 16 bits on i2c.  Little Endian.
+	outDat[0] = 0x0; // ask for fpga ID register.
+	outDat[1] = 0x51;
+	inDat[0] = 0x0; // because I don't know.
+	inDat[1] = 0x51;
 
-		// compose the write packet:
+	// compose the write packet:
 	i2cPacket[0].byRW = I2C_RW_WRITE;
 	i2cPacket[0].byAddr = 0x28;
-	i2cPacket[0].pbyBuf = (PBYTE)&outDat;
-	i2cPacket[0].lpiResult = &result1;
+	i2cPacket[0].pbyBuf = outDat;
+	i2cPacket[0].lpiResult = (LPINT)&result1;
 	i2cPacket[0].wLen = sizeof(outDat);
 
 	// compose the read packet:
 	i2cPacket[1].byRW = I2C_RW_READ;
 	i2cPacket[1].byAddr = 0x28;
-	i2cPacket[1].pbyBuf = (PBYTE)&inDat;
+	i2cPacket[1].pbyBuf = inDat;
 	i2cPacket[1].lpiResult = &result2;
 	i2cPacket[1].wLen = sizeof(inDat);
 
@@ -74,11 +88,11 @@ void do_i2c(void)
 	i2cBlock.iNumPackets = _countof(i2cPacket);
 
 	// do the transaction
-	if (I2CTransfer(i2cbus, &i2cBlock))
+	if (!I2CTransfer(i2cbus, &i2cBlock))
 	{
 		printf("I2C:\r\n");
-		printf("packet 0 write ID 0x%X outDat 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat, result1);
-		printf("packet 1 read ID 0x%X inDat 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat, result2);
+		printf("packet 0 write ID 0x%X outDat 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat[1], result1);
+		printf("packet 1 read ID 0x%X inDat 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[1], result2);
 		cout << "I2C Transaction(s) complete." << std::endl;
 	}
 	else
@@ -318,7 +332,7 @@ int wmain(int argc, wchar_t *argv[])
 	int percent, percent_new = 0;
 	uint8_t stage, step = 0;
 	LARGE_INTEGER hold_time;
-	hold_time.QuadPart = 17;
+	hold_time.QuadPart = 3;  // Hold time is 17/396000000-ths of a second.
 	// Step through the data array one byte at a time transmitting data.
 	for (int bookmark = 0; bookmark < fpga_size + PADDING_ZEROS; bookmark++) {
 		stage = fpga_data[bookmark];
