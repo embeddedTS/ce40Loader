@@ -38,8 +38,8 @@ int bangi2c(LPGPIO_CONFIG gpioCfg)
 	return err;
 }
 
-
-// Does i2c using the guruCE i2c sdk.
+// Tries to ask the FPGA for version information over i2c.  Expect inDat[0] = 0x40.
+//  i2c known-working as implemented in this function: we can talk to the RTC and SRAM just fine.
 void do_i2c(void)
 {
 	HANDLE i2cbus = INVALID_HANDLE_VALUE;
@@ -63,36 +63,35 @@ void do_i2c(void)
 		cout << "I2C Master Mode set.\r\n";
 	I2CSetFrequency(i2cbus, I2C_MAX_FREQUENCY);
 
-	// Addresses need to be 16 bits on i2c.  Little Endian.
-	outDat[0] = 0x0; // ask for fpga ID register.
-	outDat[1] = 0x51;
-	inDat[0] = 0x0; // because I don't know.
-	inDat[1] = 0x51;
 
+	outDat[0] = 0x51; // 
+	outDat[1] = 0x0;
+	inDat[0] = 0xAA; // not random, but recognizable.
+	
 	// compose the write packet:
 	i2cPacket[0].byRW = I2C_RW_WRITE;
-	i2cPacket[0].byAddr = 0x28;
+	i2cPacket[0].byAddr = 0x50;
 	i2cPacket[0].pbyBuf = outDat;
-	i2cPacket[0].lpiResult = (LPINT)&result1;
-	i2cPacket[0].wLen = sizeof(outDat);
+	i2cPacket[0].lpiResult = &result1;
+	i2cPacket[0].wLen = 1;//sizeof(outDat);
 
 	// compose the read packet:
 	i2cPacket[1].byRW = I2C_RW_READ;
-	i2cPacket[1].byAddr = 0x28;
+	i2cPacket[1].byAddr = 0x50;
 	i2cPacket[1].pbyBuf = inDat;
 	i2cPacket[1].lpiResult = &result2;
-	i2cPacket[1].wLen = sizeof(inDat);
+	i2cPacket[1].wLen = 1;//sizeof(inDat);
 
 	// set up transaction
 	i2cBlock.pI2CPackets = i2cPacket;
 	i2cBlock.iNumPackets = _countof(i2cPacket);
 
 	// do the transaction
-	if (!I2CTransfer(i2cbus, &i2cBlock))
+	if (I2CTransfer(i2cbus, &i2cBlock))
 	{
 		printf("I2C:\r\n");
-		printf("packet 0 write ID 0x%X outDat 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat[1], result1);
-		printf("packet 1 read ID 0x%X inDat 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[1], result2);
+		printf("packet 0 write ID 0x%X outDat[0] 0x%X, outDat[1] 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat[0], outDat[1], result1);
+		printf("packet 1 read ID 0x%X inDat[0] 0x%X, inDat[1] 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[0], inDat[1], result2);
 		cout << "I2C Transaction(s) complete." << std::endl;
 	}
 	else
@@ -303,11 +302,11 @@ int wmain(int argc, wchar_t *argv[])
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	printf("Performing FPGA programming incantation:\n");
-	fpga_reset.Value = 0;
+	fpga_reset.Value = 0;  // assert reset.
 	fpga_cs.Value = 0;
 	if (!GpioWritePin(&fpga_reset))
 	{
-		std::cout << "fpga reset pin clear failed.\n";
+		std::cout << "fpga reset pin assert failed.\n";
 	}
 	if (!GpioWritePin(&fpga_cs))
 	{
@@ -315,7 +314,7 @@ int wmain(int argc, wchar_t *argv[])
 	}
 	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum, 1 ms actual).\r\n");  // 1ms will do.
 	Sleep(1);
-	fpga_reset.Value = 1;
+	fpga_reset.Value = 1;  // de-assert reset.
 	if (!GpioWritePin(&fpga_reset))
 	{
 		std::cout << "fpga reset pin did not set high.\r\n";
@@ -354,6 +353,7 @@ int wmain(int argc, wchar_t *argv[])
 			hold(hold_time);
 		}
 	}
+
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                      WRAP UP                                              //
