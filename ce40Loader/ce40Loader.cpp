@@ -9,6 +9,15 @@
 //
 // Information on the TS-4900 is available at http://www.embeddedarm.com/products/TS-4900
 
+// This code is provided with no warranty etc etc etc, it's just an example, use
+// your own judgement as to its quality for any fitness or purpose.
+// 
+// Feel free to copy or use as you see fit in conjunction with Technologic Systems 
+//  hardware.  
+//  Of course the author would really like proper attribution.
+//  If this helps you get a project off the ground, send the Technologic Systems
+//  Support Team a note to support@embeddedarm.com    Thanks!
+
 #include "stdafx.h"
 #include <windows.h>
 #include <tchar.h>
@@ -18,19 +27,11 @@
 #include <i2csdk.h>	  // This header is in the GuruCE SDK.
 #include <stdint.h>
 
-#define PADDING_ZEROS 14
-#define TEST
+#define PADDING_ZEROS 7
 
 using std::cout;
 
-// Notes
-//  I might benefit from using QueryPerformanceCounter to create a more precision sleep.
-//    ^^^^^  Actually *will*.  I tried it without.  Just over 2ms per bit means I *NEED*
-//    a shorter delay function than Sleep() provides.
-//  Is it better to look for a file in the OS filesystem, or to build-in a resource?
-// /Notes
-
-// just dumps a section of memory to the screen for test purposes.
+// just dumps a section of memory to the screen for test purposes.  Thanks Ian.
 void do_hexdump(unsigned char *ptr, size_t count)
 {
 	size_t n;
@@ -46,7 +47,6 @@ void do_hexdump(unsigned char *ptr, size_t count)
 }
 
 // Tries to ask the FPGA for version information over i2c.  Expect inDat[0] = 0x40.
-//  i2c known-working as implemented in this function: we can talk to the RTC and SRAM just fine.
 void do_i2c(void)
 {
 	HANDLE i2cbus = INVALID_HANDLE_VALUE;
@@ -96,10 +96,7 @@ void do_i2c(void)
 	// do the transaction
 	if (I2CTransfer(i2cbus, &i2cBlock))
 	{
-		printf("I2C:\r\n");
-		printf("packet 0 write ID 0x%X outDat[0] 0x%X, outDat[1] 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat[0], outDat[1], result1);
-		printf("packet 1 read ID 0x%X inDat[0] 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[0], result2);
-		cout << "I2C Transaction(s) complete." << std::endl;
+		printf("Asked device 0x%X for register 0x%X.  Received 0x%X response.\n", i2cPacket[1].byAddr, outDat[0], inDat[0]);
 	}
 	else
 	{
@@ -113,52 +110,17 @@ void do_i2c(void)
 	}
 }
 
-
-/// hold:  Holds for n/queryperformancefrequency seconds.
-void hold(LARGE_INTEGER n) 
-{
-	LARGE_INTEGER now;
-	LARGE_INTEGER end;
-	// flyyyyyy me to the moon.
-	if (QueryPerformanceCounter(&now)) {
-		// let me plaaaaay among the stars.
-		end.QuadPart += now.QuadPart + n.QuadPart;
-		while (end.QuadPart > now.QuadPart)
-			// show me what spring is like
-			QueryPerformanceCounter(&now);
-			// On a-Juuuuupiter and Mars
-	}
-}
-
+// Main:  Program entry.
 int wmain(int argc, wchar_t *argv[])
 {
 	int err = 0;
-	LARGE_INTEGER counter;
-
-	// check if we can use queryperformancecounter
-	if (!QueryPerformanceFrequency(&counter)) {
-		std::cout << "Sorry, no high resolution timers available here.";
-		return -5;
-	}
-	else
-		cout << "Yay!  We can do high performance counters!  My counter frequency is " << counter.QuadPart << std::endl;
-
-	///////////////////////////////////////////////////////////////////////////////////////////////
-	//                                  FILE LOAD BLOCK                                          //
-	///////////////////////////////////////////////////////////////////////////////////////////////
-
-	// Depending on the implementation, you might want to use fileio instead of resource load.
-	//  For example, if you want to give the user a custom FPGA load on an SD card, you could
-	//  have your functionality look for that instead of loading from a resource in the loader
-	//  binary.
-
-	// TODO:  This.
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                RESOURCE LOAD BLOCK                                        //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
+	//  This is more or less wrote.  This is how you load a resource in Windows.  Not much other
+	//   way to get this task done.
 	unsigned char *fpga_data;
 	unsigned long rsrc_error = ERROR_SUCCESS; // error_success aka zero, represented as a ulong.
 	HRSRC resource_handle = FindResource(NULL, MAKEINTRESOURCE(IDR_RCDATA1), RT_RCDATA);
@@ -186,9 +148,9 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "Could not lock resource handle.  It's over Cap.  Error #" << err << "." << std::endl;
 		return 1;
 	}
-	// So, fpga_size is the actual size of our fpga bitmap, but to program, we actually need to pad the transmission.
-	//  The ICE40 bizarrely wants 49 trailing clocks.  This code, because of silliness, contains 162 trailing clocks.
-	//    I'll clean it up later.
+
+	// ICE40 Handbook says it wants 49 extra spi clocks *after* cdone asserts.  I can't do 49 evenly, so
+	//  we're going with 7 extra bytes.
 	fpga_data = new unsigned char[fpga_size + PADDING_ZEROS];
 	if (!fpga_data) {
 		err = GetLastError();
@@ -201,8 +163,9 @@ int wmain(int argc, wchar_t *argv[])
 	memset(fpga_data, 0, fpga_size + PADDING_ZEROS);
 	memcpy(fpga_data, locked_memory, fpga_size);
 
-	// maybe do some kind of check against the integrity of the read here?
-	do_hexdump(fpga_data, 256);  // it's crude, but hopefully revealing.
+	// maybe do some kind of check against the integrity of the data here?
+	printf("Outputting first 256 bytes of resource data:\n");
+	do_hexdump(fpga_data, 256);  // Display the first 256 bytes of the FPGA bitmap.
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                  GPIO SETUP BLOCK                                         //
@@ -311,6 +274,12 @@ int wmain(int argc, wchar_t *argv[])
 
 		GpioGetConfig(&gpioConfig);
 
+		// Pin GPIO_3 must be in 24MHz clock mode.  This is not CPU default, so before doing any operation with the FPGA we
+		//  should, as a matter of best practice, check and make sure that clock pin is properly configured on our target
+		//  hardware.  Some versions of the Windows Embedded Compact 2013 BSP do not set this pin to clock mode.
+		//  If your hardware is not set properly, your options are to use the eBoot console to set register 0x020E022C to 0x3
+		//  OR contact your Windows BSP/SDK provider for an OS load that supports this feature.
+
 		if (gpioConfig.Function != GPIO_FUNCTION_ALT3) printf("FAILURE: GPIO_3 IS NOT 24MHZ CLOCK MODE.  FPGA CANNOT RUN.\n");
 		else
 		{
@@ -358,7 +327,8 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "fpga reset pin did not set high.\n";
 	}
 	printf("Set fpga reset high.  Hold for 2ms.\n");
-	Sleep(2);  // The Ice40 datasheet says 800 usec in one place, and 1500 usec in another.  Our observation is you need 2ms before writing.
+	Sleep(2);  // The Ice40 datasheet says 800 usec in one place, and 1500 usec in another.  
+			   //  Our observation is you need 2ms before writing.
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                             BANG OUT ARRAY ON SPI PINS                                    //
@@ -368,9 +338,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	int percent, percent_new = 0;
 	uint8_t stage, step = 0;
-	LARGE_INTEGER hold_time;
-	hold_time.QuadPart = 40;  // (hold_time/396000000)*2 = ~actual period.
-	// Step through the data array one byte at a time transmitting data.
+	// Step through the data array one byte at a time, transmitting data one bit at a time MSB first.
 	for (int bookmark = 0; bookmark < fpga_size + PADDING_ZEROS; bookmark++) {
 		stage = fpga_data[bookmark];
 
@@ -385,45 +353,27 @@ int wmain(int argc, wchar_t *argv[])
 				mosi.Value = 0;
 			}
 			GpioWritePin(&mosi);
-//			hold(hold_time);
 			spi_clk.Value = 1;
 			GpioWritePin(&spi_clk);
-//			hold(hold_time);			//  Funny thing... I don't need these holds.
 		}
-		if (!GpioReadPin(&fpga_done)) printf("Error reading FPGA_DONE pin during spi write.\n");
-		else if (fpga_done.Value == 1)
-			printf("FPGA_DONE went high at bookmark %d.  FPGA size is %d.\n", bookmark, fpga_size);
 	}
-
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                      WRAP UP                                              //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
-	// check FPGA DONE-ness.
-	// gpioreadpin returns true on read success, or false on read fail, and modifies gpiopin.Value to the appropriate state.
-	if (!GpioReadPin(&fpga_done)) {
-		err = GetLastError();
-		std::cout << "Could not read fpga_done.  GetLastError() =" << err << std::endl;
-		// handle error?
-	}
 	// iCE40HX4K Handbook says CDONE will assert high when programming is completed.
-	if (fpga_done.Value != 1) {
-		std::cout << "fpga_done signal returned low.  FPGA configuration was not successful." << std::endl;
+	if (!GpioReadPin(&fpga_done)) {
+		printf("Error reading FPGA_DONE pin.\n");
+	}
+	else if (fpga_done.Value != 1) {
+		std::cout << "FPGA_DONE signal returned low.  FPGA configuration was not successful." << std::endl;
 		err = -2;
 	}
-	else {  // Handbook also says it wants 49 extra spi clocks *after* cdone asserts.
+	else {  
 		err = 0;
 		std::cout << "fpga_done signal returned high.  The FPGA configuration is complete." << std::endl;
-		for (int i = 0; i < 51; i++) {
-			spi_clk.Value = 0;
-			GpioWritePin(&spi_clk);
-			hold(hold_time);
-			spi_clk.Value = 1;
-			GpioWritePin(&spi_clk);
-			hold(hold_time);
-		}
-		do_i2c();
+		do_i2c();  // only do i2c read if programming actually happened.
 	}
 	
 	// clean up
