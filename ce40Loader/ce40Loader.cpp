@@ -19,6 +19,7 @@
 #include <stdint.h>
 
 #define PADDING_ZEROS 14
+#define TEST
 
 using std::cout;
 
@@ -29,13 +30,19 @@ using std::cout;
 //  Is it better to look for a file in the OS filesystem, or to build-in a resource?
 // /Notes
 
-// does i2c using bit-bang technique.
-int bangi2c(LPGPIO_CONFIG gpioCfg)
+// just dumps a section of memory to the screen for test purposes.
+void do_hexdump(unsigned char *ptr, size_t count)
 {
-	int err = ERROR_SUCCESS;
+	size_t n;
 
-	
-	return err;
+	for (n = 0; n < count; n++) {
+		if (!(n % 16)) {
+			printf("\n0x%08lX : ", (unsigned long)ptr);
+		}
+
+		printf("%02X ", *ptr++);
+	}
+	putchar('\n');
 }
 
 // Tries to ask the FPGA for version information over i2c.  Expect inDat[0] = 0x40.
@@ -64,20 +71,20 @@ void do_i2c(void)
 	I2CSetFrequency(i2cbus, I2C_MAX_FREQUENCY);
 
 
-	outDat[0] = 0x51; // 
+	outDat[0] = 0x33; // 
 	outDat[1] = 0x0;
 	inDat[0] = 0xAA; // not random, but recognizable.
 	
 	// compose the write packet:
 	i2cPacket[0].byRW = I2C_RW_WRITE;
-	i2cPacket[0].byAddr = 0x50;
+	i2cPacket[0].byAddr = 0x28;
 	i2cPacket[0].pbyBuf = outDat;
 	i2cPacket[0].lpiResult = &result1;
 	i2cPacket[0].wLen = 1;//sizeof(outDat);
 
 	// compose the read packet:
 	i2cPacket[1].byRW = I2C_RW_READ;
-	i2cPacket[1].byAddr = 0x50;
+	i2cPacket[1].byAddr = 0x28;
 	i2cPacket[1].pbyBuf = inDat;
 	i2cPacket[1].lpiResult = &result2;
 	i2cPacket[1].wLen = 1;//sizeof(inDat);
@@ -91,7 +98,7 @@ void do_i2c(void)
 	{
 		printf("I2C:\r\n");
 		printf("packet 0 write ID 0x%X outDat[0] 0x%X, outDat[1] 0x%X, result 0x%x\r\n", i2cPacket[0].byAddr, outDat[0], outDat[1], result1);
-		printf("packet 1 read ID 0x%X inDat[0] 0x%X, inDat[1] 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[0], inDat[1], result2);
+		printf("packet 1 read ID 0x%X inDat[0] 0x%X, result 0x%X\r\n", i2cPacket[1].byAddr, inDat[0], result2);
 		cout << "I2C Transaction(s) complete." << std::endl;
 	}
 	else
@@ -107,7 +114,7 @@ void do_i2c(void)
 }
 
 
-/// hold:  Holds for n/queryperformancefrequency.
+/// hold:  Holds for n/queryperformancefrequency seconds.
 void hold(LARGE_INTEGER n) 
 {
 	LARGE_INTEGER now;
@@ -135,6 +142,18 @@ int wmain(int argc, wchar_t *argv[])
 	}
 	else
 		cout << "Yay!  We can do high performance counters!  My counter frequency is " << counter.QuadPart << std::endl;
+
+	///////////////////////////////////////////////////////////////////////////////////////////////
+	//                                  FILE LOAD BLOCK                                          //
+	///////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Depending on the implementation, you might want to use fileio instead of resource load.
+	//  For example, if you want to give the user a custom FPGA load on an SD card, you could
+	//  have this functionality look for that instead of looking in the directory local to this
+	//  binary.
+
+	// TODO:  This.
+
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                RESOURCE LOAD BLOCK                                        //
@@ -180,16 +199,17 @@ int wmain(int argc, wchar_t *argv[])
 	// Zero the fpga data container, then copy the locked fpga data memory into it, offset by 1 so we keep our
 	//  8 leading zeros.  Since fpga_size is 14 bytes smaller than fpga_data, we're not worried about overruns.
 	memset(fpga_data, 0, fpga_size + PADDING_ZEROS);
-	memcpy(fpga_data + 1, locked_memory, fpga_size);
+	memcpy(fpga_data, locked_memory, fpga_size);
 
 	// maybe do some kind of check against the integrity of the read here?
+	do_hexdump(fpga_data, 256);  // it's crude, but hopefully revealing.
 
 	///////////////////////////////////////////////////////////////////////////////////////////////
 	//                                  GPIO SETUP BLOCK                                         //
 	///////////////////////////////////////////////////////////////////////////////////////////////
 
 	// set up the GPIO
-	GPIO fpga_cs, mosi, miso, spi_clk, fpga_done, fpga_reset;
+	GPIO fpga_cs, mosi, miso, spi_clk, fpga_done, fpga_reset, fpga_clk;
 	GPIO_CONFIG gpioConfig;
 	memset(&gpioConfig, 0, sizeof(gpioConfig));
 	gpioConfig.Interrupt = GPIO_INTR_NONE;
@@ -210,6 +230,7 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_UP_100K;
 		gpioConfig.Drive = GPIO_DRIVE_34_OHM;
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure fpga chip select.\n");
 			// do error thing
 		};
 
@@ -223,6 +244,7 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_UP_100K;
 		gpioConfig.Drive = GPIO_DRIVE_34_OHM;
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure mosi pin.\n");
 			// do error thing
 		}
 
@@ -236,6 +258,7 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_INVALID; // I don't think we want to put voltage on this pin.
 		gpioConfig.Drive = GPIO_DRIVE_DISABLED;  // Don't drive this pin.
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure miso pin.\n");
 			// do error thing
 		}
 
@@ -249,6 +272,7 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_UP_100K;  // Weak pull up?  Maybe need stronger.  CLK should idle high.
 		gpioConfig.Drive = GPIO_DRIVE_34_OHM;
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure SPI clock pin.\n");
 			// do error thing
 		}
 
@@ -262,6 +286,7 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_UP_100K; // weak pull.  I want the fpga to drive this low.
 		gpioConfig.Drive = GPIO_DRIVE_DISABLED;  // this is an input, don't drive it.
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure FPGA_DONE pin.\n");
 			// do error thing
 		}
 
@@ -275,11 +300,24 @@ int wmain(int argc, wchar_t *argv[])
 		gpioConfig.Pull = GPIO_PULL_UP_47K;
 		gpioConfig.Drive = GPIO_DRIVE_34_OHM;
 		if (!GpioSetConfig(&gpioConfig)) {
+			printf("Could not configure FPGA_RESET# pin.\n");
 			// do error thing
+		}
+
+		fpga_clk.Port = GPIO_PORT_1;
+		fpga_clk.Pin = GPIO_PIN_3;
+		gpioConfig.Port = fpga_clk.Port;
+		gpioConfig.Pin = fpga_clk.Pin;
+
+		GpioGetConfig(&gpioConfig);
+
+		if (gpioConfig.Function != GPIO_FUNCTION_ALT3) printf("FAILURE: GPIO_3 IS NOT 24MHZ CLOCK MODE.  FPGA CANNOT RUN.\n");
+		else
+		{
+			printf("GPIO_3 is set GPIO_FUNCTION_ALT3, we should have a clock on the FPGA.\n");
 		}
 	}
 
-#define TEST
 #ifdef TEST
 	err = GetLastError();
 	// Check gpio pin functions.
@@ -312,12 +350,12 @@ int wmain(int argc, wchar_t *argv[])
 	{
 		std::cout << "Chip select assert failed.\n";
 	}
-	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum, 1 ms actual).\r\n");  // 1ms will do.
+	printf("Chip Select low, chip reset low, clock high, wait 200 ns (minimum, 1 ms actual).\n");  // 1ms will do.
 	Sleep(1);
 	fpga_reset.Value = 1;  // de-assert reset.
 	if (!GpioWritePin(&fpga_reset))
 	{
-		std::cout << "fpga reset pin did not set high.\r\n";
+		std::cout << "fpga reset pin did not set high.\n";
 	}
 	printf("Set fpga reset high.  Hold for 2ms.\n");
 	Sleep(2);  // The Ice40 datasheet says 800 usec in one place, and 1500 usec in another.  Our observation is you need 2ms before writing.
@@ -331,7 +369,7 @@ int wmain(int argc, wchar_t *argv[])
 	int percent, percent_new = 0;
 	uint8_t stage, step = 0;
 	LARGE_INTEGER hold_time;
-	hold_time.QuadPart = 3;  // Hold time is 17/396000000-ths of a second.
+	hold_time.QuadPart = 40;  // (hold_time/396000000)*2 = ~actual period.
 	// Step through the data array one byte at a time transmitting data.
 	for (int bookmark = 0; bookmark < fpga_size + PADDING_ZEROS; bookmark++) {
 		stage = fpga_data[bookmark];
@@ -347,11 +385,14 @@ int wmain(int argc, wchar_t *argv[])
 				mosi.Value = 0;
 			}
 			GpioWritePin(&mosi);
-			hold(hold_time);
+//			hold(hold_time);
 			spi_clk.Value = 1;
 			GpioWritePin(&spi_clk);
-			hold(hold_time);
+//			hold(hold_time);			//  Funny thing... I don't need these holds.
 		}
+		if (!GpioReadPin(&fpga_done)) printf("Error reading FPGA_DONE pin during spi write.\n");
+		else if (fpga_done.Value == 1)
+			printf("FPGA_DONE went high at bookmark %d.  FPGA size is %d.\n", bookmark, fpga_size);
 	}
 
 
@@ -371,9 +412,17 @@ int wmain(int argc, wchar_t *argv[])
 		std::cout << "fpga_done signal returned low.  FPGA configuration was not successful." << std::endl;
 		err = -2;
 	}
-	else {
+	else {  // Handbook also says it wants 49 extra spi clocks *after* cdone asserts.
 		err = 0;
 		std::cout << "fpga_done signal returned high.  The FPGA configuration is complete." << std::endl;
+		for (int i = 0; i < 51; i++) {
+			spi_clk.Value = 0;
+			GpioWritePin(&spi_clk);
+			hold(hold_time);
+			spi_clk.Value = 1;
+			GpioWritePin(&spi_clk);
+			hold(hold_time);
+		}
 		do_i2c();
 	}
 	
@@ -383,5 +432,6 @@ int wmain(int argc, wchar_t *argv[])
 		printf("For what it's worth, I probably just leaked GPIO handles because GpioDeinit() returned false.  Error #%d", GetLastError());
 		return 1;
 	}
+	getchar();  // to hold the output window on the screen while I'm using the LCD to debug.
 	return err;
 }
