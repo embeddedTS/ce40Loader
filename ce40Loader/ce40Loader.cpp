@@ -149,7 +149,7 @@ int wmain(int argc, wchar_t *argv[])
 
 	// Depending on the implementation, you might want to use fileio instead of resource load.
 	//  For example, if you want to give the user a custom FPGA load on an SD card, you could
-	//  have this functionality look for that instead of looking in the directory local to this
+	//  have your functionality look for that instead of loading from a resource in the loader
 	//  binary.
 
 	// TODO:  This.
@@ -187,8 +187,8 @@ int wmain(int argc, wchar_t *argv[])
 		return 1;
 	}
 	// So, fpga_size is the actual size of our fpga bitmap, but to program, we actually need to pad the transmission.
-	//  The ICE40 wants 8 leading zeros, and ... bizarrely 100(!) trailing zeros.
-	//  Since it doesn't add up evenly, I'm going with +14 bytes.  That's 112 total extra zeros. 8 to start, 104 to end.
+	//  The ICE40 bizarrely wants 49 trailing clocks.  This code, because of silliness, contains 162 trailing clocks.
+	//    I'll clean it up later.
 	fpga_data = new unsigned char[fpga_size + PADDING_ZEROS];
 	if (!fpga_data) {
 		err = GetLastError();
@@ -196,8 +196,8 @@ int wmain(int argc, wchar_t *argv[])
 		return 1;
 	}
 
-	// Zero the fpga data container, then copy the locked fpga data memory into it, offset by 1 so we keep our
-	//  8 leading zeros.  Since fpga_size is 14 bytes smaller than fpga_data, we're not worried about overruns.
+	// Zero the fpga data container, then copy the locked fpga data memory into it.  
+	//  Since fpga_size is 14 bytes smaller than fpga_data, we're not worried about overruns.
 	memset(fpga_data, 0, fpga_size + PADDING_ZEROS);
 	memcpy(fpga_data, locked_memory, fpga_size);
 
