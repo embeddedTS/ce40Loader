@@ -1,22 +1,22 @@
 //  ce40Loader.cpp : Defines the entry point for the console application.
 //
-// c. 2016 Technologic Systems   --- http://www.embeddedarm.com
+// c. 2016 embeddedTS   --- http://www.embeddedTS.com
 //  Written by Michael D. Peters
 // This program demonstrates a bit-banged approach to loading the bitmap file
 //  for the TS-4900 ICE40 FPGA.
 // This software requires a 3rd party SDK, visit http://www.guruce.com for the 
 //  i.MX6 TS-4900 Windows Embedded Compact 2013 SDK.
 //
-// Information on the TS-4900 is available at http://www.embeddedarm.com/products/TS-4900
+// Information on the TS-4900 is available at http://www.embeddedTS.com/products/TS-4900
 
 // This code is provided with no warranty etc etc etc, it's just an example, use
 // your own judgement as to its quality for any fitness or purpose.
 // 
-// Feel free to copy or use as you see fit in conjunction with Technologic Systems 
+// Feel free to copy or use as you see fit in conjunction with embeddedTS
 //  hardware.  
 //  Of course the author would really like proper attribution.
-//  If this helps you get a project off the ground, send the Technologic Systems
-//  Support Team a note to support@embeddedarm.com    Thanks!
+//  If this helps you get a project off the ground, send the embeddedTS
+//  Support Team a note to support@embeddedTS.com    Thanks!
 
 #include "stdafx.h"
 #include <windows.h>
